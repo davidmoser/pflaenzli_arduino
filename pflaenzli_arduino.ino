@@ -23,7 +23,8 @@ void loop() {
     float moisture = readMoisture();
     if (pumpEnabled && moisture < moistureThreshold) {
       if (consecutivePumps < maxConsecutivePumps) {
-        activatePump();
+        // Open the valve before starting the pump
+        openValve();
         consecutivePumps++;
       }
     } else {
@@ -31,8 +32,13 @@ void loop() {
     }
   }
 
-  if (currentTime >= getPumpSwitchOffTime()) {
+  if (getPumpSwitchOnTime() != 0 && currentTime >= getPumpSwitchOnTime()) {
+    activatePump();
+  }
+
+  if (getPumpSwitchOffTime() != 0 && currentTime >= getPumpSwitchOffTime()) {
     deactivatePump();
+    closeValve();
   }
 
   // Always check for commands

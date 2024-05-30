@@ -31,9 +31,10 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
     if(method == ArduinoHttpServer::Method::Put) {
       const String action = httpRequest.getResource()[1]; 
       if(action == "start") {
-        activatePump();
+        openValve(); // also sets timer to activate pump
       } else if(action == "stop") {
         deactivatePump();
+        closeValve();
       } else if(action == "reset") {
         consecutivePumps = 0;
       }
@@ -50,6 +51,7 @@ String getConfiguration() {
   doc["moisture_threshold"] = moistureThreshold;
   doc["measurement_interval"] = measurementInterval;
   doc["pump_duration"] = pumpDuration;
+  doc["valve_duration"] = valveDuration;
   doc["consecutive_pumps"] = consecutivePumps;
   doc["maxConsecutive_pumps"] = maxConsecutivePumps;
   doc["measurement_enabled"] = measurementEnabled;
@@ -70,6 +72,9 @@ void setConfiguration(String payload) {
   }
   if (doc.containsKey("pump_duration")) {
     pumpDuration = doc["pump_duration"];
+  }
+  if (doc.containsKey("valve_duration")) {
+    valveDuration = doc["valve_duration"];
   }
   if (doc.containsKey("consecutive_pumps")) {
     consecutivePumps = doc["consecutive_pumps"];
