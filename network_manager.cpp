@@ -43,6 +43,18 @@ void reconnectNetwork() {
   setupNetwork();
 }
 
+// Replaces ArduinoHttpServer::StreamHttpReply which stalls ~10s due to a drain loop in sendHeader().
+// See: https://github.com/QuickSander/ArduinoHttpServer/issues/26
+void sendHttpReply(WiFiClient& client, int statusCode, const String& body) {
+    String statusText = statusCode == 200 ? "OK" : "Internal Server Error";
+    client.print("HTTP/1.1 " + String(statusCode) + " " + statusText + "\r\n");
+    client.print("Content-Type: application/json\r\n");
+    client.print("Connection: close\r\n");
+    client.print("Content-Length: " + String(body.length()) + "\r\n");
+    client.print("\r\n");
+    client.print(body);
+}
+
 void checkForCommands() {
     if (WiFi.status() != WL_CONNECTED) return;
     
@@ -55,14 +67,11 @@ void checkForCommands() {
           Serial.println("Handling command");
           CommandResult result = handleCommands(httpRequest);
           if(result.success) {
-            ArduinoHttpServer::StreamHttpReply httpReply(client, "application/json");
-            Serial.println("Sending reply");
-            httpReply.send(result.body);
+            sendHttpReply(client, 200, result.body);
             Serial.println("Command executed:" + httpRequest.getResource()[0] + "/" + httpRequest.getResource()[1]);
           } else {
-            ArduinoHttpServer::StreamHttpErrorReply httpReply(client, "application/json", "500");
-            httpReply.send(result.body);
-            Serial.println("Error handling command: " + result.body);  
+            sendHttpReply(client, 500, result.body);
+            Serial.println("Error handling command: " + result.body);
           }
         }
         // Clear the client's request and close the connection
