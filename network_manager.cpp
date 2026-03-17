@@ -49,12 +49,15 @@ void checkForCommands() {
     WiFiClient client = server.available();   // Listen for incoming clients
 
     if (client) {                             // If a new client connects,
+        Serial.println("Client present");
         ArduinoHttpServer::StreamHttpRequest<1000> httpRequest(client);
         if(httpRequest.readRequest()) {
+          Serial.println("Handling command");
           CommandResult result = handleCommands(httpRequest);
           if(result.success) {
             ArduinoHttpServer::StreamHttpReply httpReply(client, "application/json");
-            httpReply.send(result.body, "");
+            Serial.println("Sending reply");
+            httpReply.send(result.body);
             Serial.println("Command executed:" + httpRequest.getResource()[0] + "/" + httpRequest.getResource()[1]);
           } else {
             ArduinoHttpServer::StreamHttpErrorReply httpReply(client, "application/json", "500");
