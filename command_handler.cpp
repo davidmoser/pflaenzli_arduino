@@ -35,8 +35,6 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
       } else if(action == "stop") {
         deactivatePump();
         closeValve();
-      } else if(action == "reset") {
-        consecutivePumps = 0;
       }
       return CommandResult();
     } else {
@@ -48,12 +46,9 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
 
 String getConfiguration() {
   JsonDocument doc;
-  doc["moisture_threshold"] = moistureThreshold;
   doc["measurement_interval"] = measurementInterval;
   doc["pump_duration"] = pumpDuration;
   doc["valve_duration"] = valveDuration;
-  doc["consecutive_pumps"] = consecutivePumps;
-  doc["maxConsecutive_pumps"] = maxConsecutivePumps;
   doc["measurement_enabled"] = measurementEnabled;
   doc["pump_enabled"] = pumpEnabled;
   String response;
@@ -64,9 +59,6 @@ String getConfiguration() {
 void setConfiguration(String payload) {
   JsonDocument doc;
   deserializeJson(doc, payload);
-  if (doc.containsKey("moisture_threshold")) {
-    moistureThreshold = doc["moisture_threshold"];
-  }
   if (doc.containsKey("measurement_interval")) {
     measurementInterval = doc["measurement_interval"];
   }
@@ -75,12 +67,6 @@ void setConfiguration(String payload) {
   }
   if (doc.containsKey("valve_duration")) {
     valveDuration = doc["valve_duration"];
-  }
-  if (doc.containsKey("consecutive_pumps")) {
-    consecutivePumps = doc["consecutive_pumps"];
-  }
-  if (doc.containsKey("max_consecutive_pumps")) {
-    maxConsecutivePumps = doc["max_consecutive_pumps"];
   }
   if (doc.containsKey("measurement_enabled")) {
     measurementEnabled = doc["measurement_enabled"];

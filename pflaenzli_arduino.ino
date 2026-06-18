@@ -20,16 +20,7 @@ void loop() {
 
   // Check if it's time to read the sensor
   if (measurementEnabled && currentTime >= getNextMeasurementTime()) {
-    float moisture = readMoisture();
-    if (pumpEnabled && moisture < moistureThreshold) {
-      if (consecutivePumps < maxConsecutivePumps) {
-        // Open the valve before starting the pump
-        openValve();
-        consecutivePumps++;
-      }
-    } else {
-      consecutivePumps = 0;
-    }
+    readMoisture();
   }
 
   if (getPumpSwitchOnTime() != 0 && currentTime >= getPumpSwitchOnTime()) {

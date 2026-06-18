@@ -39,7 +39,7 @@ The main loop in `pflaenzli_arduino.ino` orchestrates four modules:
 
 ## Configuration
 
-Runtime parameters (defined in `config.h`, initialized in `config.cpp`) are fetched from the backend on startup via `GET /api/configuration/{id}` and can be updated at runtime through the local HTTP server. Key parameters: `moistureThreshold`, `measurementInterval`, `pumpDuration`, `valveDuration`, `maxConsecutivePumps`, `measurementEnabled`, `pumpEnabled`.
+Runtime parameters (defined in `config.h`, initialized in `config.cpp`) are fetched from the backend on startup via `GET /api/configuration/{id}` and can be updated at runtime through the local HTTP server. Key parameters: `measurementInterval`, `pumpDuration`, `valveDuration`, `measurementEnabled`, `pumpEnabled`.
 
 ## Backend API Endpoints (outbound)
 
