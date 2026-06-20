@@ -47,3 +47,8 @@ The Arduino calls these on the backend (port 8000):
 - `GET /api/configuration/{id}` — fetch config on boot
 - `POST /api/sensor` — send moisture readings (`{"moisture_level": float}`)
 - `POST /api/pump` — send pump state changes (`{"action": bool}`)
+
+## Related Projects
+
+- **pflaenzli_backend** (`../pflaenzli_backend`) — Django REST API that stores sensor data, pump actions, and configuration. Runs on port 8000.
+- **pflaenzli_frontend** (`../pflaenzli_frontend`) — Vue 3 SPA that displays moisture/pump charts and provides controls for the watering system.
