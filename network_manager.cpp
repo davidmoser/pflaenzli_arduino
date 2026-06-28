@@ -30,10 +30,19 @@ void setupNetwork() {
       Serial.println("WiFi disconnected");
       return;
     }
-    
+
+    // WiFi.begin() can return at association while DHCP is still in flight
+    // (localIP() == 0.0.0.0). Starting the server then binds it to no address and
+    // it never accepts incoming connections. Wait for a real lease first.
+    unsigned long ipDeadline = millis() + 10000;
+    while (WiFi.localIP() == IPAddress(0, 0, 0, 0) && millis() < ipDeadline) {
+      WDT.refresh();
+      delay(100);
+    }
+
     client.setHttpResponseTimeout(1000);
 
-    server.begin();  // Start the server
+    server.begin();  // Start the server (now that we have a valid IP)
     Serial.println("Server started");
     printWiFiStatus();
 }
