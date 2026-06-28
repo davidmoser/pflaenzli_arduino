@@ -7,6 +7,7 @@
 #include <ArduinoHttpServer.h>
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
+#include "WDT.h"
 
 WiFiServer server(80); // Initialize the server to listen on port 80
 WiFiClient wifiClient;
@@ -20,6 +21,7 @@ void setupNetwork() {
     }
 
     Serial.println("Attempting to connect to SSID: " + String(NETWORK_SSID));
+    WDT.refresh();  // WiFi.begin() blocks while associating; don't let the watchdog trip mid-connect
     WiFi.begin(NETWORK_SSID, NETWORK_PASSWORD);
     
     if (WiFi.status() == WL_CONNECTED) {
@@ -62,6 +64,20 @@ void checkForCommands() {
 
     if (client) {                             // If a new client connects,
         Serial.println("Client present");
+        client.setTimeout(1000);
+
+        // Drop silent / half-open connections that send nothing. Without this an
+        // incoming connection that never delivers a request blocks readRequest()
+        // and wedges the single-threaded loop (root cause of the 2026-06-28 hang).
+        unsigned long deadline = millis() + 1000;
+        while (client.connected() && !client.available() && millis() < deadline) {
+            delay(1);
+        }
+        if (!client.available()) {
+            client.stop();
+            return;
+        }
+
         ArduinoHttpServer::StreamHttpRequest<1000> httpRequest(client);
         if(httpRequest.readRequest()) {
           Serial.println("Handling command");

@@ -3,11 +3,13 @@
 #include "sensor_manager.h"
 #include "pump_controller.h"
 #include "command_handler.h"
+#include "WDT.h"
 
 static unsigned long reconnectTime = 0;
 
 void setup() {
   Serial.begin(9600);
+  WDT.begin(5000);  // hardware watchdog: if the loop ever hangs, reset & recover instead of going silently dead
   setupNetwork();
   retrieveConfiguration();
   initSensor();
@@ -16,6 +18,7 @@ void setup() {
 }
 
 void loop() {
+  WDT.refresh();  // kick the watchdog each iteration; a stalled loop will miss this and trigger a reset
   unsigned long currentTime = millis();
 
   // Check if it's time to read the sensor
