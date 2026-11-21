@@ -5,6 +5,7 @@
 
 static unsigned long pumpSwitchOnTime = 0;
 static unsigned long pumpSwitchOffTime = 0;
+static bool pumpRunning = false;
 
 void initPump() {
   pinMode(pumpPin, OUTPUT);
@@ -21,6 +22,7 @@ void openValve() {
 void activatePump() {
   Serial.println("Pump ON");
   digitalWrite(pumpPin, HIGH);
+  pumpRunning = true;
   pumpSwitchOnTime = 0;
   pumpSwitchOffTime = millis() + pumpDuration * 1000;
   sendPumpStatus(true);
@@ -40,8 +42,11 @@ void closeValve() {
 }
 
 void deactivatePump() {
-  Serial.println("Pump OFF");
   digitalWrite(pumpPin, LOW);
+  pumpSwitchOnTime = 0;  // cancel scheduled pump activation
   pumpSwitchOffTime = 0;
+  if (!pumpRunning) return;
+  pumpRunning = false;
+  Serial.println("Pump OFF");
   sendPumpStatus(false);
 }

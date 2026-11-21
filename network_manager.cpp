@@ -21,7 +21,8 @@ void setupNetwork() {
     }
 
     Serial.println("Attempting to connect to SSID: " + String(NETWORK_SSID));
-    WDT.refresh();  // WiFi.begin() blocks while associating; don't let the watchdog trip mid-connect
+    WiFi.setTimeout(3000);  // default 10 s exceeds the 5 s watchdog
+    WDT.refresh();
     WiFi.begin(NETWORK_SSID, NETWORK_PASSWORD);
     
     if (WiFi.status() == WL_CONNECTED) {
@@ -48,9 +49,11 @@ void setupNetwork() {
 }
 
 void reconnectNetwork() {
-  if (WiFi.status() == WL_CONNECTED) return;
-  Serial.println("Connection lost, reconnecting");
+  uint8_t status = WiFi.status();
+  if (status == WL_CONNECTED) return;
+  Serial.println("Connection lost (status " + String(status) + "), reconnecting");
   receivedConfiguration = false;
+  WiFi.disconnect();
   setupNetwork();
 }
 
@@ -168,6 +171,6 @@ void sendData(String endpoint, String body) {
 
 
 void printWiFiStatus() {
-    Serial.println("SSID: " + String(WiFi.SSID()));
-    Serial.println("IP Address: " + WiFi.localIP().toString());
+    Serial.println("WiFi status " + String(WiFi.status()) + ", SSID " + String(WiFi.SSID()) +
+                   ", IP " + WiFi.localIP().toString() + ", RSSI " + String(WiFi.RSSI()) + " dBm");
 }

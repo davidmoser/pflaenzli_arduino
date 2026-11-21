@@ -40,8 +40,11 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
     } else {
       Serial.println("Unexpected method");
       return CommandResult(false, "Unexpected method");
-    } 
+    }
   }
+
+  Serial.println("Unknown endpoint: " + endpoint);
+  return CommandResult(false, "Unknown endpoint");
 }
 
 String getConfiguration() {
