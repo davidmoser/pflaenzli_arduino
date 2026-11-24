@@ -1,3 +1,4 @@
+#include "logger.h"
 #include "command_handler.h"
 #include <ArduinoJson.h>
 #include "pump_controller.h"
@@ -16,7 +17,7 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
       setConfiguration(body);
       return CommandResult();
     } else {
-      Serial.println("Unexpected method");
+      logInfo("Unexpected method");
       return CommandResult(false, "Unexpected method");
     }
   } else if(endpoint == "triggerMeasurement") {
@@ -24,7 +25,7 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
       triggerMeasurement();
       return CommandResult();
     } else {
-      Serial.println("Unexpected method");
+      logInfo("Unexpected method");
       return CommandResult(false, "Unexpected method");
     }
   } else if(endpoint == "pump") {
@@ -38,12 +39,12 @@ CommandResult handleCommands(ArduinoHttpServer::StreamHttpRequest<1000>& httpReq
       }
       return CommandResult();
     } else {
-      Serial.println("Unexpected method");
+      logInfo("Unexpected method");
       return CommandResult(false, "Unexpected method");
     }
   }
 
-  Serial.println("Unknown endpoint: " + endpoint);
+  logInfo("Unknown endpoint: " + endpoint);
   return CommandResult(false, "Unknown endpoint");
 }
 

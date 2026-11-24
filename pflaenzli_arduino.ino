@@ -4,8 +4,12 @@
 #include "pump_controller.h"
 #include "command_handler.h"
 #include "WDT.h"
+#include "logger.h"
 
 static unsigned long reconnectTime = 0;
+static unsigned long statusTime = 0;
+static unsigned long maxLoopMs = 0;
+static unsigned long loopCount = 0;
 
 void logResetCause() {
   uint8_t rstsr0 = R_SYSTEM->RSTSR0;
@@ -19,8 +23,8 @@ void logResetCause() {
   else if (R_SYSTEM->RSTSR1_b.SWRF) cause = "software reset";
   else if (warmStart) cause = "reset pin / button";
   else cause = "unknown";
-  Serial.println("Reset cause: " + cause + " (RSTSR0=0x" + String(rstsr0, HEX) +
-                 " RSTSR1=0x" + String(rstsr1, HEX) + " CWSF=" + String(warmStart) + ")");
+  logInfo("Reset cause: " + cause + " (RSTSR0=0x" + String(rstsr0, HEX) +
+          " RSTSR1=0x" + String(rstsr1, HEX) + " CWSF=" + String(warmStart) + ")");
 
   R_SYSTEM->RSTSR0 = 0;
   R_SYSTEM->RSTSR1 = 0;
@@ -35,7 +39,7 @@ void setup() {
   retrieveConfiguration();
   initSensor();
   initPump();
-  Serial.println("Setup complete.");
+  logInfo("Setup complete.");
 }
 
 void loop() {
@@ -64,8 +68,20 @@ void loop() {
     reconnectTime = currentTime + 60 * 1000;
     reconnectNetwork();
     retrieveConfiguration();
-    printWiFiStatus();
   }
+
+  if (currentTime >= statusTime) {
+    statusTime = currentTime + (DEBUG_LOG ? 10 : 60) * 1000;
+    printWiFiStatus();
+    logDebug("Loops " + String(loopCount) + ", slowest " + String(maxLoopMs) + " ms");
+    loopCount = 0;
+    maxLoopMs = 0;
+  }
+
+  loopCount++;
+  unsigned long loopMs = millis() - currentTime;
+  if (loopMs > maxLoopMs) maxLoopMs = loopMs;
+  if (loopMs > 1000) logInfo("Slow loop: " + String(loopMs) + " ms");
 
   delay(10);
 }

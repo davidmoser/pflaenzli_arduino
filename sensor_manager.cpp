@@ -1,3 +1,4 @@
+#include "logger.h"
 #include "sensor_manager.h"
 #include "network_manager.h"
 #include "config.h"
@@ -14,7 +15,7 @@ void initSensor() {
 
 float readMoisture() {
   int moisture = analogRead(sensorPin) / 1023.0 * 100;
-  Serial.println("Moisture: " + String(moisture));
+  logInfo("Moisture: " + String(moisture));
   nextMeasurementTime = millis() + measurementInterval * 1000;
   sendSensorData(moisture);  // Send data to the server right after measurement
   return moisture;  // Convert to percentage

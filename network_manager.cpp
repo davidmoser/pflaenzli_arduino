@@ -8,27 +8,49 @@
 #include <ArduinoHttpClient.h>
 #include <ArduinoJson.h>
 #include "WDT.h"
+#include "logger.h"
 
 WiFiServer server(80); // Initialize the server to listen on port 80
 WiFiClient wifiClient;
 HttpClient client(wifiClient, SERVER_IP, 8000);
 bool receivedConfiguration = false;
+static unsigned long incomingCount = 0, outboundOk = 0, outboundFail = 0;
+
+static String macToString(const uint8_t* mac) {
+    String s;
+    for (int i = 0; i < 6; i++) {
+        if (i) s += ":";
+        if (mac[i] < 0x10) s += "0";
+        s += String(mac[i], HEX);
+    }
+    return s;
+}
+
+static String currentBSSID() {
+    uint8_t bssid[6] = {0};
+    return WiFi.BSSID(bssid) ? macToString(bssid) : "?";
+}
 
 void setupNetwork() {
     if (WiFi.status() == WL_NO_MODULE) {
-        Serial.println("Communication with WiFi module failed!");
+        logInfo("Communication with WiFi module failed!");
         return;
     }
 
-    Serial.println("Attempting to connect to SSID: " + String(NETWORK_SSID));
+    uint8_t mac[6] = {0};
+    WiFi.macAddress(mac);
+    logInfo("WiFi module firmware " + String(WiFi.firmwareVersion()) + ", MAC " + macToString(mac));
+    logInfo("Attempting to connect to SSID: " + String(NETWORK_SSID));
     WiFi.setTimeout(3000);  // default 10 s exceeds the 5 s watchdog
     WDT.refresh();
+    unsigned long beginStart = millis();
     WiFi.begin(NETWORK_SSID, NETWORK_PASSWORD);
+    logDebug("WiFi.begin took " + String(millis() - beginStart) + " ms, status " + String(WiFi.status()));
     
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("WiFi connected");
+      logInfo("WiFi connected");
     } else {
-      Serial.println("WiFi disconnected");
+      logInfo("WiFi disconnected");
       return;
     }
 
@@ -41,17 +63,18 @@ void setupNetwork() {
       delay(100);
     }
 
+    logDebug("IP " + WiFi.localIP().toString() + " after " + String(millis() - beginStart) + " ms, gateway " + WiFi.gatewayIP().toString());
     client.setHttpResponseTimeout(1000);
 
     server.begin();  // Start the server (now that we have a valid IP)
-    Serial.println("Server started");
+    logInfo("Server started");
     printWiFiStatus();
 }
 
 void reconnectNetwork() {
   uint8_t status = WiFi.status();
   if (status == WL_CONNECTED) return;
-  Serial.println("Connection lost (status " + String(status) + "), reconnecting");
+  logInfo("Connection lost (status " + String(status) + "), reconnecting");
   receivedConfiguration = false;
   WiFi.disconnect();
   setupNetwork();
@@ -75,7 +98,9 @@ void checkForCommands() {
     WiFiClient client = server.available();   // Listen for incoming clients
 
     if (client) {                             // If a new client connects,
-        Serial.println("Client present");
+        unsigned long start = millis();
+        incomingCount++;
+        logDebug("Incoming connection from " + client.remoteIP().toString());
         client.setTimeout(1000);
 
         // Drop silent / half-open connections that send nothing. Without this an
@@ -86,22 +111,26 @@ void checkForCommands() {
             delay(1);
         }
         if (!client.available()) {
+            logInfo("Incoming connection sent no data within 1 s, dropped");
             client.stop();
             return;
         }
 
         ArduinoHttpServer::StreamHttpRequest<1000> httpRequest(client);
         if(httpRequest.readRequest()) {
-          Serial.println("Handling command");
+          logDebug("Request " + httpRequest.getResource().toString());
           CommandResult result = handleCommands(httpRequest);
           if(result.success) {
             sendHttpReply(client, 200, result.body);
-            Serial.println("Command executed:" + httpRequest.getResource()[0] + "/" + httpRequest.getResource()[1]);
+            logInfo("Command executed: " + httpRequest.getResource()[0] + "/" + httpRequest.getResource()[1]);
           } else {
             sendHttpReply(client, 500, result.body);
-            Serial.println("Error handling command: " + result.body);
+            logInfo("Error handling command: " + result.body);
           }
+        } else {
+          logInfo("Failed to read incoming request");
         }
+        logDebug("Incoming connection handled in " + String(millis() - start) + " ms");
         // Clear the client's request and close the connection
         client.stop();
     }
@@ -109,7 +138,8 @@ void checkForCommands() {
 
 void retrieveConfiguration() {
   if (WiFi.status() != WL_CONNECTED || receivedConfiguration) return;
-  Serial.println("Retrieving configuration");
+  logInfo("Retrieving configuration");
+  unsigned long start = millis();
 
   client.beginRequest();
   client.get("/api/configuration/" + String(configuration_id));
@@ -120,12 +150,13 @@ void retrieveConfiguration() {
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
   if (statusCode < 0) {
-    Serial.println("Status code: " + String(statusCode));
-    Serial.println("Can't retrieve configuration");
+    outboundFail++;
+    logInfo("Can't retrieve configuration, status " + String(statusCode) + " after " + String(millis() - start) + " ms");
     return;
   }
 
-  Serial.println("Received configuration");
+  outboundOk++;
+  logInfo("Received configuration (HTTP " + String(statusCode) + ", " + String(millis() - start) + " ms)");
   setConfiguration(response);
   receivedConfiguration = true;
 }
@@ -149,7 +180,8 @@ void sendPumpStatus(bool pumpStatus) {
 
 void sendData(String endpoint, String body) {
   if (WiFi.status() != WL_CONNECTED) return;
-  Serial.println("Sending data to " + endpoint);
+  logInfo("Sending data to " + endpoint);
+  unsigned long start = millis();
 
   client.beginRequest();
   client.post(endpoint);
@@ -163,14 +195,24 @@ void sendData(String endpoint, String body) {
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
 
-  if(statusCode < 0) {
-    Serial.println("Status code: " + String(statusCode));
-    Serial.println("Response: " + response);
+  if (statusCode < 0) {
+    outboundFail++;
+    logInfo("Send to " + endpoint + " failed, status " + String(statusCode) + " after " + String(millis() - start) + " ms");
+  } else {
+    outboundOk++;
+    logDebug("Sent to " + endpoint + ": HTTP " + String(statusCode) + ", " + String(millis() - start) + " ms");
   }
 }
 
 
 void printWiFiStatus() {
-    Serial.println("WiFi status " + String(WiFi.status()) + ", SSID " + String(WiFi.SSID()) +
-                   ", IP " + WiFi.localIP().toString() + ", RSSI " + String(WiFi.RSSI()) + " dBm");
+    static String lastBSSID;
+    String bssid = currentBSSID();
+    String line = "WiFi status " + String(WiFi.status()) + ", SSID " + String(WiFi.SSID()) + ", BSSID " + bssid +
+                  ", IP " + WiFi.localIP().toString() + ", RSSI " + String(WiFi.RSSI()) + " dBm";
+    if (lastBSSID.length() && bssid != lastBSSID) line += " (roamed from " + lastBSSID + ")";
+    lastBSSID = bssid;
+    logInfo(line);
+    logDebug("Unix time " + String(WiFi.getTime()) + ", incoming " + String(incomingCount) +
+             ", outbound ok " + String(outboundOk) + " / failed " + String(outboundFail));
 }

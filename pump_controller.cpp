@@ -1,3 +1,4 @@
+#include "logger.h"
 #include "pump_controller.h"
 #include <Arduino.h>
 #include "config.h"
@@ -14,13 +15,13 @@ void initPump() {
 }
 
 void openValve() {
-  Serial.println("Valve OPEN");
+  logInfo("Valve OPEN");
   digitalWrite(valvePin, HIGH);
   pumpSwitchOnTime = millis() + valveDuration * 1000;
 }
 
 void activatePump() {
-  Serial.println("Pump ON");
+  logInfo("Pump ON");
   digitalWrite(pumpPin, HIGH);
   pumpRunning = true;
   pumpSwitchOnTime = 0;
@@ -37,7 +38,7 @@ unsigned long getPumpSwitchOffTime() {
 }
 
 void closeValve() {
-  Serial.println("Valve CLOSED");
+  logInfo("Valve CLOSED");
   digitalWrite(valvePin, LOW);
 }
 
@@ -47,6 +48,6 @@ void deactivatePump() {
   pumpSwitchOffTime = 0;
   if (!pumpRunning) return;
   pumpRunning = false;
-  Serial.println("Pump OFF");
+  logInfo("Pump OFF");
   sendPumpStatus(false);
 }
